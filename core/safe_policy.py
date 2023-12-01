@@ -122,21 +122,24 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
             if self.sl_mode == 'hard':
                 prob = cp.Problem(cp.Minimize(cost), [C + g_mean @ x  <= - margin])
 
-            elif self.sl_mode == 'soft':
+            elif self.sl_mode == 'prob':
+                prob = cp.Problem(cp.Minimize(cost), [C + norm.ppf(self.p)*cp.abs(g_std @ x) + g_mean @ x  <= - margin])
+
+            else:
                 l1_penalty = 1000
                 e = cp.Variable(C.shape)
 
                 cost = cp.sum_squares((x - actions) * 0.5 ) + l1_penalty * cp.norm1(e)
-                prob = cp.Problem(cp.Minimize(cost), [C + g_mean @ x.T  <= - margin + e])
+                if self.sl_mode == 'soft':
+                    prob = cp.Problem(cp.Minimize(cost), [C + g_mean @ x.T  <= - margin + e])
 
-            elif self.sl_mode == 'prob':
-                prob = cp.Problem(cp.Minimize(cost), [C + norm.ppf(self.p)*cp.abs(g_std @ x) + g_mean @ x  <= - margin])
-                self.applied_p = self.p
-            
+           
             modified_action = self.optimize(prob, x, actions)
+            self.applied_p = min(self.calculate_probability(modified_action, g_mean, g_std, C, margin))
 
             return th.Tensor(modified_action).unsqueeze(0)
         else:
+            self.applied_p = min(lower_p)
             return act
 
     def forward(self, obs: th.Tensor, deterministic: bool = False) -> Tuple[th.Tensor, th.Tensor, th.Tensor]:
