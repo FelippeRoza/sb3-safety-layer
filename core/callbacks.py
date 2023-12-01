@@ -21,12 +21,13 @@ class TensorboardCallback(BaseCallback):
         self.thresh_violations = 0
         self.start_time = time.time_ns()
         self._render_freq = render_freq
-        self.p_list, self.correction = [], []
+        self.p_list, self.correction, self.c_pred_error = [], [], []
 
     def _on_step(self) -> bool:
         
         self.p_list.append(self.model.policy.applied_p)
         self.correction.append(self.model.policy.correction)
+        self.c_pred_error.append(self.model.policy.cost_pred_error)
 
         if (np.array(self.env.calculate_cost()) > 0.0).any():
             self.thresh_violations += 1
@@ -39,13 +40,14 @@ class TensorboardCallback(BaseCallback):
             self.logger.record('safety/interventions', self.model.policy.solver_interventions)
             self.logger.record('safety/ep_prob_mean', safe_mean(self.p_list))
             self.logger.record('safety/ep_correction_mean', safe_mean(self.correction))
+            self.logger.record('safety/ep_c_pred_mean_error', safe_mean(self.c_pred_error))
 
 
             fps = int( self.log_interval / ((time.time_ns() - self.start_time) / 1e9) )
             self.logger.record("time/fps", fps)
             self.logger.record("time/total_timesteps", self.model.num_timesteps, exclude="tensorboard")
 
-            self.p_list, self.correction = [], []
+            self.p_list, self.correction, self.c_pred_error = [], [], []
             self.start_time = time.time_ns()
             self.logger.dump(self.num_timesteps)
 

@@ -54,6 +54,8 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
         self.solver_interventions = 0
         self.solver_infeasible = 0
         self.applied_p = -1
+        self.cost_pred_error = 0.0
+        self.old_cost_pred = None
     
         super(SafeActorCriticPolicy, self).__init__(observation_space = observation_space,
             action_space = action_space,
@@ -106,6 +108,14 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
         C = np.array(self.env.calculate_cost())
         g_mean, g_std = self.safety_layer.forward_mean_std(C, state, actions)
         margin = np.repeat(self.margin, C.shape)
+
+        # calculate cost prediction error
+        if self.env._elapsed_steps == 0:
+            self.cost_pred_error = 0.0
+        else:
+            self.cost_pred_error = np.linalg.norm(self.old_cost_pred - C)
+        self.old_cost_pred = C + g_mean @ actions
+        
         
         lower_p = self.calculate_probability(actions, g_mean, g_std, C, margin)
 
