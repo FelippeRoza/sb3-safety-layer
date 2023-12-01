@@ -122,10 +122,10 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
 
             elif self.sl_mode == 'soft':
                 l1_penalty = 1000
-                e = cp.Variable(actions.shape)
+                e = cp.Variable(C.shape)
 
                 cost = cp.sum_squares((x - actions) * 0.5 ) + l1_penalty * cp.norm1(e)
-                prob = cp.Problem(cp.Minimize(cost), [C + g_mean @ x.T  <= - self.col_margin + e])
+                prob = cp.Problem(cp.Minimize(cost), [C + g_mean @ x.T  <= - margin + e])
 
             elif self.sl_mode == 'prob':
                 prob = cp.Problem(cp.Minimize(cost), [C + norm.ppf(self.p)*cp.abs(g_std @ x) + g_mean @ x  <= - margin])
