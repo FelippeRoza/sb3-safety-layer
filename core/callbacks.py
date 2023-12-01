@@ -26,6 +26,7 @@ class TensorboardCallback(BaseCallback):
     def _on_step(self) -> bool:
         
         self.p_list.append(self.model.policy.applied_p)
+        self.correction.append(self.model.policy.correction)
 
         if (np.array(self.env.calculate_cost()) > 0.0).any():
             self.thresh_violations += 1
@@ -35,7 +36,9 @@ class TensorboardCallback(BaseCallback):
             self.logger.record("rollout/ep_len_mean", safe_mean([ep_info["l"] for ep_info in self.model.ep_info_buffer]))
             
             self.logger.record('safety/violations', self.thresh_violations)
+            self.logger.record('safety/interventions', self.model.policy.solver_interventions)
             self.logger.record('safety/ep_prob_mean', safe_mean(self.p_list))
+            self.logger.record('safety/ep_correction_mean', safe_mean(self.correction))
 
 
             fps = int( self.log_interval / ((time.time_ns() - self.start_time) / 1e9) )

@@ -78,19 +78,15 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
     def optimize(self, problem, var, og_action):
         """
         input: cvxpy problem, cvxpy optimization variable, rl action
-        returns: safe action (np array), infeasible (bool), invervention (bool)
-        if no solution (infeasible = True) returns og_action"""
+        returns: safe action (np array) if solution is found
+        if no solution (safe_action is None) returns the og_action"""
         problem.solve(solver=cp.SCS, max_iters=500)
         safe_action = var.value
         
         if safe_action is None:
-            # TODO: implement backup
             self.solver_infeasible += 1
-            self.applied_p = -1
             return og_action
-        # Count Solver interventions
-        intervened = np.linalg.norm(og_action - safe_action) > 1e-3
-        self.solver_interventions += intervened            
+                    
         return safe_action
 
     def calculate_probability(self, action, g_mean, g_std, c, margin):
@@ -136,10 +132,13 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
            
             modified_action = self.optimize(prob, x, actions)
             self.applied_p = min(self.calculate_probability(modified_action, g_mean, g_std, C, margin))
+            self.correction = np.linalg.norm(modified_action - actions)
+            self.solver_interventions += self.correction > 1e-3
 
             return th.Tensor(modified_action).unsqueeze(0)
         else:
             self.applied_p = min(lower_p)
+            self.correction = 0.0
             return act
 
     def forward(self, obs: th.Tensor, deterministic: bool = False) -> Tuple[th.Tensor, th.Tensor, th.Tensor]:
