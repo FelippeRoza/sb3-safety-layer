@@ -52,7 +52,9 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
         self.margin = margin
         self.p = prob
         self.solver_interventions = 0
-        
+        self.solver_infeasible = 0
+        self.applied_p = -1
+    
         super(SafeActorCriticPolicy, self).__init__(observation_space = observation_space,
             action_space = action_space,
             lr_schedule = lr_schedule,
@@ -85,7 +87,7 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
             # TODO: implement backup
             self.solver_infeasible += 1
             self.applied_p = -1
-            return og_action, True, False
+            return og_action
         # Count Solver interventions
         intervened = np.linalg.norm(og_action - safe_action) > 1e-3
         self.solver_interventions += intervened            
