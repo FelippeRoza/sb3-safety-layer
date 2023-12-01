@@ -111,7 +111,7 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
         
         lower_p = self.calculate_probability(actions, g_mean, g_std, C, margin)
 
-        if self.sl_mode == 'soft' or self.sl_mode=='hard' or (lower_p < 0.95).any():
+        if (lower_p < 0.95).any():
 
             self.applied_p = -1
             x = cp.Variable(actions.shape)
