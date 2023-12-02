@@ -139,6 +139,9 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
                 if self.sl_mode == 'soft':
                     prob = cp.Problem(cp.Minimize(cost), [C + g_mean @ x.T  <= - margin + e])
 
+                elif self.sl_mode == 'hybrid':
+                    prob = cp.Problem(cp.Minimize(cost), [C + norm.ppf(self.p)*cp.abs(g_std @ x) + g_mean @ x  <= - margin + e])
+
            
             modified_action = self.optimize(prob, x, actions)
             self.applied_p = min(self.calculate_probability(modified_action, g_mean, g_std, C, margin))

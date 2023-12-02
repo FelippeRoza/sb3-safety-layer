@@ -14,7 +14,7 @@ def main(args):
     log_name = args.method
     if args.method in ['prob', 'hybrid']:
         log_name = f'{log_name}_p{args.prob}'
-    log_name = f'{log_name}_{args.log_name}'
+    log_name = f'{log_name}{args.log_name}'
 
     env = gym.make(args.env_name, render_mode = 'rgb_array')
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--sl_buffer_size', type=int, default=1_000_000, help='buffer size of the safety layer.')
     parser.add_argument('--prob', type=float, default=0.8)
-    parser.add_argument('--method', choices=['prob', 'hard', 'soft', 'unsafe'], default='unsafe')
+    parser.add_argument('--method', choices=['prob', 'hybrid', 'hard', 'soft', 'unsafe'], default='unsafe')
     parser.add_argument('--log_name', default='')
     
     args = parser.parse_args()
