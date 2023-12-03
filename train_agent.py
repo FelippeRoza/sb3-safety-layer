@@ -18,13 +18,11 @@ def main(args):
 
     env = gym.make(args.env_name, render_mode = 'rgb_array')
 
-    if args.method == 'unsafe':
-        rl_agent = SAC('MlpPolicy', env, verbose=1, tensorboard_log=data_dir)
-    else:
-        sl = CDM(env, buffer_size=args.sl_buffer_size)
+    sl = CDM(env, buffer_size=args.sl_buffer_size)
+    if args.pretrained_sl:
         sl.load(os.path.join('data', 'pretrained_cdm', args.env_name, f'linear_{True}'))
-        rl_agent = PPO(SafeActorCriticPolicy, env, verbose=1, tensorboard_log=data_dir,
-                    policy_kwargs={'environment': env, 'safety_layer': sl, 'sl_mode': args.method})
+    rl_agent = PPO(SafeActorCriticPolicy, env, verbose=1, tensorboard_log=data_dir,
+                policy_kwargs={'environment': env, 'safety_layer': sl, 'sl_mode': args.method})
 
     rl_agent.learn(total_timesteps=args.train_steps, log_interval=None, tb_log_name=log_name,
                 callback=TensorboardCallback(env, args.log_freq, render_freq=args.render_freq))
@@ -46,6 +44,7 @@ if __name__ == "__main__":
     parser.add_argument('--ensemble_size', type=int, default=5)
 
     parser.add_argument('--sl_buffer_size', type=int, default=1_000_000, help='buffer size of the safety layer.')
+    parser.add_argument('--pretrained_sl', action='store_true')
     parser.add_argument('--prob', type=float, default=0.8)
     parser.add_argument('--method', choices=['prob', 'hybrid', 'hard', 'soft', 'unsafe'], default='unsafe')
     parser.add_argument('--log_name', default='')

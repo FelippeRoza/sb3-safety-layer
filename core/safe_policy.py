@@ -56,6 +56,7 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
         self.applied_p = -1
         self.cost_pred_error = 0.0
         self.old_cost_pred = None
+        self.correction = 0.0
     
         super(SafeActorCriticPolicy, self).__init__(observation_space = observation_space,
             action_space = action_space,
@@ -164,6 +165,7 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
         """
 
         actions, values, log_prob = super(SafeActorCriticPolicy, self).forward(obs, deterministic)
-        actions = self.get_safe_actions(obs, actions)
+        if self.sl_mode != 'unsafe':
+            actions = self.get_safe_actions(obs, actions)
 
         return actions, values, log_prob
