@@ -55,8 +55,8 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
         self.solver_infeasible = 0
         self.applied_p = -1
         self.cost_pred_error = 0.0
-        self.old_cost_pred = None
         self.correction = 0.0
+        self.buffer = {}
     
         super(SafeActorCriticPolicy, self).__init__(observation_space = observation_space,
             action_space = action_space,
@@ -114,8 +114,11 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
         if self.env._elapsed_steps == 0:
             self.cost_pred_error = 0.0
         else:
-            self.cost_pred_error = np.linalg.norm(self.old_cost_pred - C)
-        self.old_cost_pred = C + g_mean @ actions
+            self.cost_pred_error = np.linalg.norm(self.buffer['old_c_pred'] - C)    
+            self.safety_layer.replay_buffer.add(self.buffer['old_c'], 
+                                                np.concatenate([self.buffer['old_s'], self.buffer['old_a']]), 
+                                                C, 0, False, False)
+        self.buffer = {'old_s': state, 'old_c': C, 'old_c_pred': C + g_mean @ actions }
         
         
         lower_p = self.calculate_probability(actions, g_mean, g_std, C, margin)
@@ -167,5 +170,6 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
         actions, values, log_prob = super(SafeActorCriticPolicy, self).forward(obs, deterministic)
         if self.sl_mode != 'unsafe':
             actions = self.get_safe_actions(obs, actions)
+        self.buffer['old_a'] = actions.squeeze(0).detach().cpu().numpy()
 
         return actions, values, log_prob

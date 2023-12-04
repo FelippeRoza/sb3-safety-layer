@@ -25,7 +25,8 @@ def main(args):
                 policy_kwargs={'environment': env, 'safety_layer': sl, 'sl_mode': args.method})
 
     rl_agent.learn(total_timesteps=args.train_steps, log_interval=None, tb_log_name=log_name,
-                callback=TensorboardCallback(env, args.log_freq, render_freq=args.render_freq))
+                callback=TensorboardCallback(env, args.log_freq, render_freq=args.render_freq,
+                                             sl_retrain_steps=args.sl_retrain_steps))
     rl_agent.save(os.path.join(rl_agent.logger.dir, 'rl_model'))
 
 
@@ -45,6 +46,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--sl_buffer_size', type=int, default=1_000_000, help='buffer size of the safety layer.')
     parser.add_argument('--pretrained_sl', action='store_true')
+    parser.add_argument('--sl_retrain_steps', type=int, default=0, help='number of steps to collect samples and retrain the sl models')
     parser.add_argument('--prob', type=float, default=0.8)
     parser.add_argument('--method', choices=['prob', 'hybrid', 'hard', 'soft', 'unsafe'], default='unsafe')
     parser.add_argument('--log_name', default='')

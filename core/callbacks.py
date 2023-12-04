@@ -14,11 +14,12 @@ class TensorboardCallback(BaseCallback):
     Custom callback for plotting additional values in tensorboard.
     """
 
-    def __init__(self, env, log_interval, verbose=0, render_freq = 0):
+    def __init__(self, env, log_interval, verbose=0, render_freq = 0, sl_retrain_steps = 0):
         super(TensorboardCallback, self).__init__(verbose)
         self.env = env
         self.log_interval = log_interval
         self.thresh_violations = 0
+        self.sl_retrain_steps = sl_retrain_steps
         self.start_time = time.time_ns()
         self._render_freq = render_freq
         self.p_list, self.correction, self.c_pred_error = [], [], []
@@ -31,6 +32,11 @@ class TensorboardCallback(BaseCallback):
 
         if (np.array(self.env.calculate_cost()) > 0.0).any():
             self.thresh_violations += 1
+
+        if self.model.policy.sl_mode != 'unsafe':
+            if (self.sl_retrain_steps > 0 and self.num_timesteps % self.sl_retrain_steps == 0):
+                self.model.policy.safety_layer.train(n_epochs=10)
+        
 
         if (self.num_timesteps % self.log_interval == 0):
             self.logger.record("rollout/ep_rew_mean", safe_mean([ep_info["r"] for ep_info in self.model.ep_info_buffer]))
