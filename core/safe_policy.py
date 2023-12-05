@@ -125,7 +125,6 @@ class SafeActorCriticPolicy(ActorCriticPolicy):
 
         if (lower_p < 0.95).any():
 
-            self.applied_p = -1
             x = cp.Variable(actions.shape)
             cost = cp.sum_squares((x - actions) * 0.5)
 
