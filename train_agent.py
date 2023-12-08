@@ -28,9 +28,9 @@ def main(args):
                 callback=TensorboardCallback(env, args.log_freq, render_freq=args.render_freq,
                                              sl_retrain_steps=args.sl_retrain_steps))
 
-    rl_agent.save(os.path.join(rl_agent.logger.dir, 'rl_model'))
     with open(os.path.join(rl_agent.logger.dir, 'config.json'), 'w') as f:
         json.dump(args.__dict__, f, indent=2)
+    rl_agent.save(os.path.join(rl_agent.logger.dir, 'rl_model'), exclude=['policy_kwargs'])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SB3SL: RL with a Safety Layer.')
