@@ -22,7 +22,8 @@ def main(args):
     if args.pretrained_sl:
         sl.load(os.path.join('data', 'pretrained_cdm', args.env_name, f'linear_{args.linear_sl}'))
     rl_agent = PPO(SafeActorCriticPolicy, env, verbose=1, tensorboard_log=data_dir,
-                policy_kwargs={'environment': env, 'safety_layer': sl, 'sl_mode': args.method})
+                policy_kwargs={'environment': env, 'safety_layer': sl, 
+                               'sl_mode': args.method, 'linear_model': args.linear_sl})
 
     rl_agent.learn(total_timesteps=args.train_steps, log_interval=None, tb_log_name=log_name,
                 callback=TensorboardCallback(env, args.log_freq, render_freq=args.render_freq,
