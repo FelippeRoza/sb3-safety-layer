@@ -7,7 +7,9 @@ from stable_baselines3.common.logger import Video
 from stable_baselines3.common.utils import safe_mean
 import imageio
 import time
-
+from stable_baselines3.common.logger import TensorBoardOutputFormat
+import pandas as pd
+import os
 
 class TensorboardCallback(BaseCallback):
     """
@@ -23,6 +25,13 @@ class TensorboardCallback(BaseCallback):
         self.start_time = time.time_ns()
         self._render_freq = render_freq
         self.p_list, self.correction, self.c_pred_error = [], [], []
+        self.collision_step = [] #
+    
+    def _on_training_start(self):
+        output_formats = self.logger.output_formats
+        # Save reference to tensorboard formatter object
+        # note: the failure case (not formatter found) is not handled here, should be done with try/except.
+        self.tb_formatter = next(formatter for formatter in output_formats if isinstance(formatter, TensorBoardOutputFormat))
 
     def _on_step(self) -> bool:
         
@@ -30,12 +39,13 @@ class TensorboardCallback(BaseCallback):
         self.correction.append(self.model.policy.correction)
         self.c_pred_error.append(self.model.policy.cost_pred_error)
 
-        if (np.array(self.env.calculate_cost()) > 0.0).any():
+        if self.env.collision:
             self.thresh_violations += 1
+            self.collision_step.append(len(self.p_list) - 1)
 
         if self.model.policy.sl_mode != 'unsafe':
             if (self.sl_retrain_steps > 0 and self.num_timesteps % self.sl_retrain_steps == 0):
-                self.model.policy.safety_layer.train(n_epochs=10)
+                self.model.policy.safety_layer.train(n_epochs=2)
         
 
         if (self.num_timesteps % self.log_interval == 0):
