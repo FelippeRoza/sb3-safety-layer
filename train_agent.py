@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--env_name', choices=['ContSafetyBallReach-v1', 'ContSafetyBallReach-v0',
                                                'MultiagentDescentralizedSafe-v0', 'ContSafetyBallGather-v0',
-                                               'SpaceshipSafe-v0'], 
+                                               'SpaceshipSafe-v0', 'SafetyPointGoal1Gymnasium-v0'], 
                         default='ContSafetyBallReach-v1')
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--method', choices=['PPO', 'SAC'], default='PPO')
