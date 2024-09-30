@@ -8,6 +8,9 @@ import scipy as sp
 from scipy.stats import norm
 
 
+buffer = {}
+
+
 def linear_model_optimization(self, actions, C, margin, g_mean, g_std):
         # cvxpy optimization for linearized cost prediction models in the form c_1 = c_0 + g(s)*a
         
@@ -52,11 +55,17 @@ def e2e_model_optimization(sl_mode, sl, prob, linear_model, state, actions, C, m
         eps = x[a_len:]
         if sl_mode == 'soft':
             with th.no_grad():
-                c_delta, c_std = sl.forward_mean_std(C, np.concatenate((state, a)))
-            return - ( (C + c_delta + margin + eps).max() )
+                c_next_pred = sl.predict(C, state, a, return_std=False)
+            return - ( (c_next_pred + margin + eps).max() )
         elif sl_mode == 'prob':
             with th.no_grad():
-                c_next_pred, g_std = sl.predict(C, np.concatenate((state, a)), a, return_std=True)
+                # c_next_pred, g_std = sl.predict(C, state, a, return_std=True)
+                cost_tensor = th.tensor(C, dtype=th.float32)
+                obs_tensor = th.tensor(state, dtype=th.float32)
+                act_tensor = th.tensor(a, dtype=th.float32)
+                input = th.cat((obs_tensor, act_tensor, cost_tensor), dim=-1)
+                c_next_pred = sl(input).numpy()
+                g_std = 0.5
             p = min(calculate_probability(linear_model, a, c_next_pred, g_std, margin))
             return p - prob
     
@@ -88,10 +97,12 @@ def calculate_probability(linear_model, action, c_next_pred, g_std, margin):
 
 @th.no_grad()
 def get_safe_actions(sl, env, state, act):
+    global buffer
     margin = 0.3
     sl_mode = 'prob'
     prob = 0.8
-    linear_model = sl.linearized
+    # linear_model = sl.linearized
+    linear_model = False
 
     # actions = act.squeeze(0).detach().cpu().numpy()
     actions = act
@@ -101,14 +112,29 @@ def get_safe_actions(sl, env, state, act):
     state = state
 
     C = np.array(env.calculate_cost())
-    C_next_pred, g_std = sl.predict(C, np.concatenate((state, actions)), actions, return_std=True)
+
+    cost_tensor = th.tensor(C, dtype=th.float32)
+    obs_tensor = th.tensor(obs, dtype=th.float32)
+    act_tensor = th.tensor(act, dtype=th.float32)
+    input = th.cat((obs_tensor, act_tensor, cost_tensor), dim=-1)
+    C_next_pred = sl(input).numpy()
+    # C_next_pred, g_std = sl.predict(C, state, actions, return_std=True)
+    g_std = 0.5
     margin = np.repeat(margin, C.shape)
     
+    # calculate cost prediction error
+    if env._elapsed_steps == 0:
+        sl.cost_pred_error = 0.0
+    else:
+        sl.cost_pred_error = np.linalg.norm(buffer['old_c_pred'] - C)    
+        # sl.replay_buffer.add(buffer['old_c'], sl.stack, C, 0, False, False)
+    buffer = {'old_s': state, 'old_c': C, 'old_c_pred': C_next_pred }
+
     # return original action if probabilities are already satisfied
     if sl_mode in ['prob', 'hybrid', 'soft']:
         lower_p = min(calculate_probability(linear_model, actions, C_next_pred, g_std, margin))
         if lower_p >= prob:
-            return act, g_std.mean()
+            return act, g_std
     
     if linear_model:
         g_mean, g_std = sl.forward_mean_std(C, np.concatenate((state, actions)))
@@ -116,13 +142,18 @@ def get_safe_actions(sl, env, state, act):
     else:
         modified_action = e2e_model_optimization(sl_mode, sl, prob, linear_model, state, actions, C, margin, obs)
 
-    c_next_pred, g_std = sl.predict(C, np.concatenate((state, modified_action)), modified_action, return_std=True)
+    # cost_tensor = th.tensor(C, dtype=th.float32)
+    # obs_tensor = th.tensor(obs, dtype=th.float32)
+    # act_tensor = th.tensor(act, dtype=th.float32)
+    # input = th.cat((obs_tensor, act_tensor, cost_tensor), dim=-1)
+    # C_next_pred = sl(input).numpy()
+    # g_std = 0.5
+    # c_next_pred, g_std = sl.predict(C, state, modified_action, return_std=True)
     # self.applied_p = min(calculate_probability(self, modified_action, c_next_pred, g_std, margin))
     correction = np.linalg.norm(modified_action - actions)
     # if correction > 1e-3:
     #     print('here')
     
-
-    return modified_action, g_std.mean()
+    return modified_action, g_std
 
     

@@ -8,11 +8,28 @@ from stable_baselines3.sac.policies import SACPolicy
 from stable_baselines3.common.policies import ActorCriticPolicy
 from costDynamicsModel import CDM
 import json
-from core.safetyEnvWrapper import SafetyWrappedEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+from core.safetyEnvWrapper import SafetyWrappedEnv, make_wrapped_env
 
+import torch
+import torch.nn as nn
 
+class SafetyLayerNN(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(SafetyLayerNN, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 128)
+        self.fc2 = nn.Linear(128, output_dim)
 
-num_envs=6
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+def load_model(model, filepath):
+    model.load_state_dict(torch.load(filepath))
+    model.eval()  # Set model to evaluation mode
+    print(f"Model loaded from {filepath}")
+
 
 def main(args):
 
@@ -23,12 +40,13 @@ def main(args):
     log_name = f'{log_name}{args.log_name}'
     env = gym.make(args.env_name, render_mode = 'rgb_array')
     
+    obs, info = env.reset()
+    cost = info['cost']
+
     if args.sl_method != 'unsafe':
-        sl = CDM(env, buffer_size=args.sl_buffer_size, linearized=args.linear_sl)
-        if args.pretrained_sl:
-            sl_path = os.path.join('data', 'pretrained_cdm', args.env_name, f'linear_{args.linear_sl}')
-            sl.load(os.path.join('data', 'pretrained_cdm', args.env_name, f'linear_{args.linear_sl}'))
-            print(f'===== loaded sl from {sl_path}')
+        sl = SafetyLayerNN(input_dim=len(obs)+len(cost)+env.action_space.shape[0], 
+                      output_dim=len(cost))
+        load_model(sl, f'data/sl_models/{args.env_name}_sl_model.pth')
     else:
         sl = None
 
@@ -47,7 +65,8 @@ def main(args):
     with open(os.path.join(rl_agent.logger.dir, 'config.json'), 'w') as f:
         json.dump(args.__dict__, f, indent=2)
     rl_agent.save(os.path.join(rl_agent.logger.dir, 'rl_model'), exclude=['policy_kwargs'])
-    sl.save(rl_agent.logger.dir)
+    if args.sl_method != 'unsafe':
+        sl.save(rl_agent.logger.dir)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SB3SL: RL with a Safety Layer.')
@@ -67,6 +86,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--sl_buffer_size', type=int, default=1_000_000, help='buffer size of the safety layer.')
     parser.add_argument('--pretrained_sl', action='store_true')
+    # parser.add_argument('--pretrained_sl_dir')
     parser.add_argument('--linear_sl', action='store_true')
     parser.add_argument('--sl_retrain_steps', type=int, default=0, help='number of steps to collect samples and retrain the sl models')
     parser.add_argument('--prob', type=float, default=0.8)

@@ -24,7 +24,7 @@ class SafetyWrappedEnv(gym.Wrapper):
         self.old_action = action
         if self.sl:
             action, std = get_safe_actions(self.sl, self.env, obs, action)
-        self.safe_action = action
+            self.safe_action = action
         obs, reward, terminated, truncated, info = self.env.step(action)
 
         self.total_collisions = self.env.total_collisions
