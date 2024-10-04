@@ -10,26 +10,10 @@ from costDynamicsModel import CDM
 import json
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from core.safetyEnvWrapper import SafetyWrappedEnv, make_wrapped_env
+from costDynamicsModel.models import BayesianNN
 
 import torch
 import torch.nn as nn
-
-class SafetyLayerNN(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super(SafetyLayerNN, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 128)
-        self.fc2 = nn.Linear(128, output_dim)
-
-    def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
-
-def load_model(model, filepath):
-    model.load_state_dict(torch.load(filepath))
-    model.eval()  # Set model to evaluation mode
-    print(f"Model loaded from {filepath}")
-
 
 def main(args):
 
@@ -44,9 +28,9 @@ def main(args):
     cost = info['cost']
 
     if args.sl_method != 'unsafe':
-        sl = SafetyLayerNN(input_dim=len(obs)+len(cost)+env.action_space.shape[0], 
+        sl = BayesianNN(input_dim=len(obs)+len(cost)+env.action_space.shape[0], 
                       output_dim=len(cost))
-        load_model(sl, f'data/sl_models/{args.env_name}_sl_model.pth')
+        sl.load(f'data/sl_models/{args.env_name}_sl_model.pth')
     else:
         sl = None
 

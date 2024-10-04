@@ -64,7 +64,8 @@ def e2e_model_optimization(sl_mode, sl, prob, linear_model, state, actions, C, m
                 obs_tensor = th.tensor(state, dtype=th.float32)
                 act_tensor = th.tensor(a, dtype=th.float32)
                 input = th.cat((obs_tensor, act_tensor, cost_tensor), dim=-1)
-                c_next_pred = sl(input).numpy()
+                c_next_pred, g_logvar = sl(input)
+                c_next_pred, g_std = c_next_pred.numpy(), np.sqrt(np.exp(g_logvar.numpy()))
                 g_std = 0.5
             p = min(calculate_probability(linear_model, a, c_next_pred, g_std, margin))
             return p - prob
@@ -117,9 +118,8 @@ def get_safe_actions(sl, env, state, act):
     obs_tensor = th.tensor(obs, dtype=th.float32)
     act_tensor = th.tensor(act, dtype=th.float32)
     input = th.cat((obs_tensor, act_tensor, cost_tensor), dim=-1)
-    C_next_pred = sl(input).numpy()
-    # C_next_pred, g_std = sl.predict(C, state, actions, return_std=True)
-    g_std = 0.5
+    C_next_pred, g_logvar = sl(input)
+    C_next_pred, g_std = C_next_pred.numpy(), np.sqrt(np.exp(g_logvar.numpy()))
     margin = np.repeat(margin, C.shape)
     
     # calculate cost prediction error
